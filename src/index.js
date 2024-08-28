@@ -9,7 +9,7 @@ class ChatPluginWebRtc {
   }
 
   listenSocketEvent() {
-    this.channel.on("peer_candidate", async (data) => {
+    this.channel.on("web_rtc_candidate", async (data) => {
       console.log("Get ice candidate from remote peer");
       if (this.peerConnection) {
         try {
@@ -21,18 +21,19 @@ class ChatPluginWebRtc {
       }
     });
 
-    this.channel.on("peer_remote_description", async (data) => {
+    this.channel.on("web_rtc_remote_description", async (data) => {
       console.log("Get offer from remote peer");
       if (!this.peerConnection) {
         this.initPeerConnection();
       }
+      console.log(this.peerConnection.signalingState);
       const desc = new RTCSessionDescription(data.description);
-      await this.peerConnection.setRemoteDescription(desc);
+      await this.peerConnection.setRemoteDescription(desc);      
       if (data.description.type === "offer") {
         try {
           const answer = await this.peerConnection.createAnswer();
           await this.peerConnection.setLocalDescription(answer);
-          this.channel.push("peer_remote_description", {
+          this.channel.push("web_rtc_remote_description", {
             description: this.peerConnection.localDescription,
             target_id: this.targetId,
           });
@@ -63,7 +64,7 @@ class ChatPluginWebRtc {
     this.peerConnection.onicecandidate = (event) => {
       console.log("Get ice candidate from local peer");
       if (event.candidate) {
-        this.channel.push("peer_candidate", {
+        this.channel.push("web_rtc_candidate", {
           candidate: event.candidate,
           target_id: this.targetId,
         });
@@ -84,12 +85,12 @@ class ChatPluginWebRtc {
       }
     };
 
-    this.peerConnection.onnegotiationneeded = async () => {
+    this.peerConnection.onnegotiationneeded = async (_, event) => {
       console.log("Negotiation needed");
       try {
         const offer = await this.peerConnection.createOffer();
         await this.peerConnection.setLocalDescription(offer);
-        this.channel.push("peer_remote_description", {
+        this.channel.push("web_rtc_remote_description", {
           description: this.peerConnection.localDescription,
           target_id: this.targetId,
         });
@@ -125,6 +126,8 @@ class ChatPluginWebRtc {
     this.peerConnection = null;
     this.resetAudio(this.localAudio);
     this.resetAudio(this.remoteAudio);
+    this.channel.off("web_rtc_candidate");
+    this.channel.off("web_rtc_remote_description");
     this.localStream?.getTracks().forEach((track) => track.stop());
     this.localStream = null;
   }

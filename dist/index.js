@@ -27,7 +27,7 @@ var ChatPluginWebRtc = exports.ChatPluginWebRtc = /*#__PURE__*/function () {
     key: "listenSocketEvent",
     value: function listenSocketEvent() {
       var _this = this;
-      this.channel.on("peer_candidate", /*#__PURE__*/function () {
+      this.channel.on("web_rtc_candidate", /*#__PURE__*/function () {
         var _ref = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee(data) {
           return _regeneratorRuntime().wrap(function _callee$(_context) {
             while (1) switch (_context.prev = _context.next) {
@@ -58,47 +58,49 @@ var ChatPluginWebRtc = exports.ChatPluginWebRtc = /*#__PURE__*/function () {
           return _ref.apply(this, arguments);
         };
       }());
-      this.channel.on("peer_remote_description", /*#__PURE__*/function () {
+      this.channel.on("web_rtc_remote_description", /*#__PURE__*/function () {
         var _ref2 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee2(data) {
           var desc, answer;
           return _regeneratorRuntime().wrap(function _callee2$(_context2) {
             while (1) switch (_context2.prev = _context2.next) {
               case 0:
-                console.log("Get remote description, type: ".concat(data));
+                console.log("Get offer from remote peer");
                 if (!_this.peerConnection) {
                   _this.initPeerConnection();
                 }
+                console.log(_this.peerConnection.signalingState);
                 desc = new RTCSessionDescription(data.description);
-                _context2.next = 5;
+                _context2.next = 6;
                 return _this.peerConnection.setRemoteDescription(desc);
-              case 5:
+              case 6:
                 if (!(data.description.type === "offer")) {
-                  _context2.next = 18;
+                  _context2.next = 20;
                   break;
                 }
-                _context2.prev = 6;
-                _context2.next = 9;
+                _context2.prev = 7;
+                _context2.next = 10;
                 return _this.peerConnection.createAnswer();
-              case 9:
+              case 10:
                 answer = _context2.sent;
-                _context2.next = 12;
+                _context2.next = 13;
                 return _this.peerConnection.setLocalDescription(answer);
-              case 12:
-                _this.channel.push("peer_remote_description", {
+              case 13:
+                _this.channel.push("web_rtc_remote_description", {
                   description: _this.peerConnection.localDescription,
                   target_id: _this.targetId
                 });
-                _context2.next = 18;
+                _this.setLocalAudio();
+                _context2.next = 20;
                 break;
-              case 15:
-                _context2.prev = 15;
-                _context2.t0 = _context2["catch"](6);
+              case 17:
+                _context2.prev = 17;
+                _context2.t0 = _context2["catch"](7);
                 console.error("createAnswer error", _context2.t0);
-              case 18:
+              case 20:
               case "end":
                 return _context2.stop();
             }
-          }, _callee2, null, [[6, 15]]);
+          }, _callee2, null, [[7, 17]]);
         }));
         return function (_x2) {
           return _ref2.apply(this, arguments);
@@ -124,7 +126,7 @@ var ChatPluginWebRtc = exports.ChatPluginWebRtc = /*#__PURE__*/function () {
       this.peerConnection.onicecandidate = function (event) {
         console.log("Get ice candidate from local peer");
         if (event.candidate) {
-          _this2.channel.push("peer_candidate", {
+          _this2.channel.push("web_rtc_candidate", {
             candidate: event.candidate,
             target_id: _this2.targetId
           });
@@ -143,52 +145,42 @@ var ChatPluginWebRtc = exports.ChatPluginWebRtc = /*#__PURE__*/function () {
           };
         }
       };
-      this.setLocalAudio();
-
-      // this.peerConnection.onsignalingstatechange = () => {
-
-      // this.peerConnection.onnegotiationneeded = async () => {
-      //   console.log("Negotiation needed");
-      // };
+      this.peerConnection.onnegotiationneeded = /*#__PURE__*/function () {
+        var _ref3 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee3(_, event) {
+          var offer;
+          return _regeneratorRuntime().wrap(function _callee3$(_context3) {
+            while (1) switch (_context3.prev = _context3.next) {
+              case 0:
+                console.log("Negotiation needed");
+                _context3.prev = 1;
+                _context3.next = 4;
+                return _this2.peerConnection.createOffer();
+              case 4:
+                offer = _context3.sent;
+                _context3.next = 7;
+                return _this2.peerConnection.setLocalDescription(offer);
+              case 7:
+                _this2.channel.push("web_rtc_remote_description", {
+                  description: _this2.peerConnection.localDescription,
+                  target_id: _this2.targetId
+                });
+                _context3.next = 13;
+                break;
+              case 10:
+                _context3.prev = 10;
+                _context3.t0 = _context3["catch"](1);
+                console.error("Negotiation error", _context3.t0);
+              case 13:
+              case "end":
+                return _context3.stop();
+            }
+          }, _callee3, null, [[1, 10]]);
+        }));
+        return function (_x3, _x4) {
+          return _ref3.apply(this, arguments);
+        };
+      }();
     }
-  }, {
-    key: "sendOffer",
-    value: function () {
-      var _sendOffer = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee3() {
-        var offer;
-        return _regeneratorRuntime().wrap(function _callee3$(_context3) {
-          while (1) switch (_context3.prev = _context3.next) {
-            case 0:
-              _context3.prev = 0;
-              _context3.next = 3;
-              return this.peerConnection.createOffer();
-            case 3:
-              offer = _context3.sent;
-              _context3.next = 6;
-              return this.peerConnection.setLocalDescription(offer);
-            case 6:
-              console.log("Send offer to remote peer");
-              this.channel.push("peer_remote_description", {
-                description: this.peerConnection.localDescription,
-                target_id: this.targetId
-              });
-              _context3.next = 13;
-              break;
-            case 10:
-              _context3.prev = 10;
-              _context3.t0 = _context3["catch"](0);
-              console.error("Negotiation error", _context3.t0);
-            case 13:
-            case "end":
-              return _context3.stop();
-          }
-        }, _callee3, this, [[0, 10]]);
-      }));
-      function sendOffer() {
-        return _sendOffer.apply(this, arguments);
-      }
-      return sendOffer;
-    }()
   }, {
     key: "setLocalAudio",
     value: function () {
@@ -235,18 +227,22 @@ var ChatPluginWebRtc = exports.ChatPluginWebRtc = /*#__PURE__*/function () {
   }, {
     key: "startCall",
     value: function startCall() {
-      this.initPeerConnection();
+      if (!this.peerConnection) {
+        this.initPeerConnection();
+      }
+      this.setLocalAudio();
       this.listenSocketEvent();
-      this.sendOffer();
     }
   }, {
     key: "hangUp",
     value: function hangUp() {
       var _this$peerConnection, _this$localStream;
       (_this$peerConnection = this.peerConnection) === null || _this$peerConnection === void 0 || _this$peerConnection.close();
-      delete this.peerConnection;
+      this.peerConnection = null;
       this.resetAudio(this.localAudio);
       this.resetAudio(this.remoteAudio);
+      this.channel.off("web_rtc_candidate");
+      this.channel.off("web_rtc_remote_description");
       (_this$localStream = this.localStream) === null || _this$localStream === void 0 || _this$localStream.getTracks().forEach(function (track) {
         return track.stop();
       });
